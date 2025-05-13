@@ -4,7 +4,7 @@ pub enum OpCode {
     Constant,
     Negate,
     Add,
-    Sub,
-    Mult,
-    Div,
+    Subtract,
+    Multiply,
+    Divide,
 }

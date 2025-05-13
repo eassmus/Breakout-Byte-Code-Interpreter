@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use crate::primitives::{Bool, Float, Int, Str};
-use crate::scanner::*;
+use crate::tokenizer::*;
+use ordered_float::OrderedFloat;
 use std::error::Error;
 use std::fmt;
 
@@ -25,10 +25,10 @@ impl std::fmt::Display for Symbol {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Literal {
-    Integer(Int),
-    Float(Float),
-    String(Str),
-    Bool(Bool),
+    Integer(i64),
+    Float(OrderedFloat<f64>),
+    String(String),
+    Bool(bool),
     Void,
 }
 impl Literal {
@@ -77,18 +77,16 @@ impl Error for ParsingError {}
 
 fn parse_literal(s: String, desired_type: Option<Type>) -> Result<Token, ParsingError> {
     if s.starts_with("\"") && s.ends_with("\"") {
-        Ok(Token::Lit(Literal::String(Str::new(
-            s[1..s.len() - 1].to_string(),
-        ))))
+        Ok(Token::Lit(Literal::String(s[1..s.len() - 1].to_string())))
     } else if s.parse::<i64>().is_ok() && desired_type.unwrap_or(Type::Int) == Type::Int {
-        Ok(Token::Lit(Literal::Integer(Int::new(s.parse().unwrap()))))
+        Ok(Token::Lit(Literal::Integer(s.parse().unwrap())))
     } else if s.parse::<f64>().is_ok() {
-        Ok(Token::Lit(Literal::Float(Float::new(s.parse().unwrap()))))
+        Ok(Token::Lit(Literal::Float(OrderedFloat(s.parse().unwrap()))))
     } else if s == "true" || s == "false" {
         if s == "true" {
-            Ok(Token::Lit(Literal::Bool(Bool::new(true))))
+            Ok(Token::Lit(Literal::Bool(true)))
         } else {
-            Ok(Token::Lit(Literal::Bool(Bool::new(false))))
+            Ok(Token::Lit(Literal::Bool(false)))
         }
     } else {
         panic!("where is my literal??")

@@ -6,7 +6,7 @@ use std::fmt;
 pub struct VM {
     program_data: Chunk,
     stack: Vec<i64>,
-    constants: Vec<&[i64]>,
+    constants: Vec<i64>,
 }
 
 enum VMErrorData {
@@ -30,11 +30,11 @@ impl fmt::Debug for VMError {
 impl Error for VMError {}
 
 impl VM {
-    pub fn new(data: Vec<ChunkData>) -> VM {
+    pub fn new() -> VM {
         VM {
-            program_data: Chunk::new(data),
+            program_data: Chunk::new(Vec::new()),
             stack: Vec::new(),
-            stack_pointer: 0,
+            constants: Vec::new(),
         }
     }
     pub fn give_data(&mut self, _data: &mut Vec<ChunkData>) {
@@ -46,30 +46,32 @@ impl VM {
             match op {
                 OpCode::Return => break,
                 OpCode::Constant => {
-                    self.stack_push(self.constants[data[0]]);
+                    let constant = self.constants[data[0] as usize];
+                    self.stack_push(&[constant]);
                 }
                 OpCode::Negate => {
-                    self.stack_push(-self.stack_pop());
+                    let top = self.stack_pop();
+                    self.stack_push(&[-top]);
                 }
                 OpCode::Add => {
                     let b = self.stack_pop();
                     let a = self.stack_pop();
-                    self.stack_push(a + b);
+                    self.stack_push(&[a + b]);
                 }
                 OpCode::Subtract => {
                     let b = self.stack_pop();
                     let a = self.stack_pop();
-                    self.stack_push(a - b);
+                    self.stack_push(&[a - b]);
                 }
                 OpCode::Multiply => {
                     let b = self.stack_pop();
                     let a = self.stack_pop();
-                    self.stack_push(a * b);
+                    self.stack_push(&[a * b]);
                 }
                 OpCode::Divide => {
                     let b = self.stack_pop();
                     let a = self.stack_pop();
-                    self.stack_push(a / b);
+                    self.stack_push(&[a / b]);
                 }
                 _ => todo!(),
             }
