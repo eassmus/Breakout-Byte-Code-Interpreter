@@ -1,12 +1,13 @@
 use crate::chunk::{Chunk, ChunkData};
 use crate::common::OpCode;
+use crate::value::{PrimType, Value, ValueUnion};
 use std::error::Error;
 use std::fmt;
 
 pub struct VM {
     program_data: Chunk,
-    stack: Vec<i64>,
-    constants: Vec<i64>,
+    stack: Vec<Value>,
+    constants: Vec<Value>,
 }
 
 enum VMErrorData {
@@ -50,38 +51,104 @@ impl VM {
                     self.stack_push(&[constant]);
                 }
                 OpCode::Negate => {
-                    let top = self.stack_pop();
-                    self.stack_push(&[-top]);
+                    let mut top = self.stack_pop();
+                    unsafe {
+                        match top.t {
+                            PrimType::Float => {
+                                top.value.f = -top.value.f;
+                            }
+                            PrimType::Int => {
+                                top.value.i = -top.value.i;
+                            }
+                            PrimType::Bool => {
+                                top.value.b = !top.value.b;
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                    self.stack_push(&[top]);
                 }
                 OpCode::Add => {
+                    let mut a = self.stack_pop();
                     let b = self.stack_pop();
-                    let a = self.stack_pop();
-                    self.stack_push(&[a + b]);
+                    unsafe {
+                        match a.t {
+                            PrimType::Float => {
+                                a.value.f += b.value.f;
+                            }
+                            PrimType::Int => {
+                                a.value.i += b.value.i;
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                    self.stack_push(&[a]);
                 }
                 OpCode::Subtract => {
+                    let mut a = self.stack_pop();
                     let b = self.stack_pop();
-                    let a = self.stack_pop();
-                    self.stack_push(&[a - b]);
+                    unsafe {
+                        match a.t {
+                            PrimType::Float => {
+                                a.value.f -= b.value.f;
+                            }
+                            PrimType::Int => {
+                                a.value.i -= b.value.i;
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                    self.stack_push(&[a]);
                 }
                 OpCode::Multiply => {
+                    let mut a = self.stack_pop();
                     let b = self.stack_pop();
-                    let a = self.stack_pop();
-                    self.stack_push(&[a * b]);
+                    unsafe {
+                        match a.t {
+                            PrimType::Float => {
+                                a.value.f *= b.value.f;
+                            }
+                            PrimType::Int => {
+                                a.value.i *= b.value.i;
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                    self.stack_push(&[a]);
                 }
                 OpCode::Divide => {
+                    let mut a = self.stack_pop();
                     let b = self.stack_pop();
-                    let a = self.stack_pop();
-                    self.stack_push(&[a / b]);
+                    unsafe {
+                        match a.t {
+                            PrimType::Float => {
+                                a.value.f /= b.value.f;
+                            }
+                            PrimType::Int => {
+                                a.value.i /= b.value.i;
+                            }
+                            _ => panic!(),
+                        }
+                    }
+                    self.stack_push(&[a]);
                 }
+                OpCode::True => self.stack_push(&[Value {
+                    t: PrimType::Bool,
+                    value: ValueUnion { b: true },
+                }]),
+                OpCode::False => self.stack_push(&[Value {
+                    t: PrimType::Bool,
+                    value: ValueUnion { b: false },
+                }]),
                 _ => todo!(),
             }
         }
         Ok(())
     }
-    fn stack_push(&mut self, slice: &[i64]) {
+    fn stack_push(&mut self, slice: &[Value]) {
         self.stack.extend_from_slice(slice);
     }
-    fn stack_pop(&mut self) -> i64 {
+    fn stack_pop(&mut self) -> Value {
         self.stack.pop().unwrap()
     }
     #[inline]

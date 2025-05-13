@@ -1,4 +1,4 @@
-use phf::{phf_map, Map};
+use phf::{Map, phf_map};
 use regex::Regex;
 use regex_split::RegexSplit;
 use std::io::Read;

@@ -7,4 +7,6 @@ pub enum OpCode {
     Subtract,
     Multiply,
     Divide,
+    True,
+    False,
 }
