@@ -1,3 +1,4 @@
+#![feature(thin_box)]
 mod chunk;
 mod common;
 mod compiler;

@@ -51,8 +51,8 @@ impl VM {
                         .set_pointer(self.position_stack.pop().unwrap());
                 }
                 OpCode::Constant => {
-                    let constant = self.constants[data[0] as usize];
-                    self.value_stack_push(&[constant]);
+                    let constant = &self.constants[data[0] as usize];
+                    self.value_stack_push(&[constant.clone()]);
                 }
                 OpCode::Add => {
                     let b = self.value_stack_pop();
@@ -137,7 +137,7 @@ impl VM {
                 }
                 OpCode::StackLoadLocalVar => {
                     self.value_stack
-                        .push(self.function_stack.last().unwrap().1[data[0] as usize]);
+                        .push(self.function_stack.last().unwrap().1[data[0] as usize].clone());
                 }
                 OpCode::Not => {
                     let a = self.value_stack_last_mut();

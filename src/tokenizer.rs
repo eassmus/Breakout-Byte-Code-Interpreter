@@ -1,7 +1,7 @@
-use phf::{Map, phf_map};
+use phf::{phf_map, Map};
 use regex::Regex;
 use regex_split::RegexSplit;
-use std::io::Read;
+use std::{fmt::write, io::Read};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Delimeter {
@@ -26,7 +26,7 @@ pub enum Keyword {
 pub enum Type {
     Int,
     Float,
-    Char,
+    String,
     Bool,
 }
 impl std::fmt::Display for Type {
@@ -35,7 +35,7 @@ impl std::fmt::Display for Type {
             Type::Int => write!(f, "int"),
             Type::Float => write!(f, "float"),
             Type::Bool => write!(f, "bool"),
-            Type::Char => write!(f, "char"),
+            Type::String => write!(f, "string"),
         }
     }
 }
@@ -137,6 +137,8 @@ pub fn tokenize_line(line: String) -> Vec<PreTokenized> {
         .filter(|t| t != &PreTokenized::T(PreToken::COMMENT))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Comma)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Semicolon)))
+        .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::LPar)))
+        .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::RPar)))
         .collect();
     split.push(PreTokenized::T(PreToken::EOL));
     split

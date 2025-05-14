@@ -27,7 +27,7 @@ impl std::fmt::Display for Symbol {
 pub enum Literal {
     Integer(i64),
     Float(OrderedFloat<f64>),
-    Char(char),
+    String(String),
     Bool(bool),
 }
 impl Literal {
@@ -35,7 +35,7 @@ impl Literal {
         match self {
             Literal::Integer(_) => Type::Int,
             Literal::Float(_) => Type::Float,
-            Literal::Char(_) => Type::Char,
+            Literal::String(_) => Type::String,
             Literal::Bool(_) => Type::Bool,
         }
     }
@@ -46,7 +46,7 @@ impl std::fmt::Display for Literal {
         match self {
             Literal::Integer(n) => write!(f, "{}", n),
             Literal::Float(n) => write!(f, "{}", n),
-            Literal::Char(c) => write!(f, "{}", c),
+            Literal::String(s) => write!(f, "{}", s),
             Literal::Bool(b) => write!(f, "{}", b),
         }
     }
@@ -74,7 +74,7 @@ impl Error for ParsingError {}
 
 fn parse_literal(s: String, desired_type: Option<Type>) -> Result<Token, ParsingError> {
     if s.starts_with("'") && s.ends_with("'") {
-        Ok(Token::Lit(Literal::Char(s.chars().nth(1).unwrap())))
+        Ok(Token::Lit(Literal::String(s[1..s.len() - 1].to_owned())))
     } else if s.parse::<i64>().is_ok() && desired_type.unwrap_or(Type::Int) == Type::Int {
         Ok(Token::Lit(Literal::Integer(s.parse().unwrap())))
     } else if s.parse::<f64>().is_ok() {
