@@ -1,7 +1,7 @@
-use phf::{phf_map, Map};
+use phf::{Map, phf_map};
 use regex::Regex;
 use regex_split::RegexSplit;
-use std::{fmt::write, io::Read};
+use std::io::Read;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Delimeter {
@@ -11,6 +11,8 @@ pub enum Delimeter {
     Dot,
     Colon,
     Semicolon,
+    LBracket,
+    RBracket,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -75,6 +77,8 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 "," => PreToken::DEL(Delimeter::Comma),
 "(" => PreToken::DEL(Delimeter::LPar),
 ")" => PreToken::DEL(Delimeter::RPar),
+"[" => PreToken::DEL(Delimeter::LBracket),
+"]" => PreToken::DEL(Delimeter::RBracket),
 "." => PreToken::DEL(Delimeter::Dot),
 ":" => PreToken::DEL(Delimeter::Colon),
 ";" => PreToken::DEL(Delimeter::Semicolon),
@@ -102,7 +106,7 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 ":=" => PreToken::KW(Keyword::Define),
 "int" => PreToken::TYPE(Type::Int),
 "float" => PreToken::TYPE(Type::Float),
-"char" => PreToken::TYPE(Type::Char),
+"string" => PreToken::TYPE(Type::String),
 "bool" => PreToken::TYPE(Type::Bool),
 "#" => PreToken::COMMENT,
 };
@@ -135,7 +139,6 @@ pub fn tokenize_line(line: String) -> Vec<PreTokenized> {
         })
         .map(string_to_tokenize)
         .filter(|t| t != &PreTokenized::T(PreToken::COMMENT))
-        .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Comma)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Semicolon)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::LPar)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::RPar)))
