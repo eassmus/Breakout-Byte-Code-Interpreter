@@ -1,3 +1,4 @@
+use crate::value::Type;
 use phf::{Map, phf_map};
 use regex::Regex;
 use regex_split::RegexSplit;
@@ -24,13 +25,6 @@ pub enum Keyword {
     Kick,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Type {
-    Int,
-    Float,
-    String,
-    Bool,
-}
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -38,6 +32,12 @@ impl std::fmt::Display for Type {
             Type::Float => write!(f, "float"),
             Type::Bool => write!(f, "bool"),
             Type::String => write!(f, "string"),
+            Type::Array(x) => {
+                write!(f, "[")?;
+                x.fmt(f)?;
+                write!(f, "]")
+            }
+            Type::AnyType => write!(f, "any"),
         }
     }
 }
@@ -61,9 +61,11 @@ pub enum Operator {
     Nand,
     Cond,
     Floor,
+    Concat,
+    Index,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreToken {
     DEL(Delimeter),
     KW(Keyword),
@@ -99,6 +101,8 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 "!&&" => PreToken::OP(Operator::Nand),
 "cond" => PreToken::OP(Operator::Cond),
 "floor" => PreToken::OP(Operator::Floor),
+"++" => PreToken::OP(Operator::Concat),
+"@" => PreToken::OP(Operator::Index),
 "|" => PreToken::KW(Keyword::Bar),
 "punch" => PreToken::KW(Keyword::Punch),
 "kick" => PreToken::KW(Keyword::Kick),
@@ -120,13 +124,13 @@ pub enum PreTokenized {
 fn string_to_tokenize(s: &str) -> PreTokenized {
     let res = TOKEN_MAP.get(s);
     match res {
-        Some(t) => PreTokenized::T(*t),
+        Some(t) => PreTokenized::T(t.clone()),
         None => PreTokenized::S(s.to_owned()),
     }
 }
 
 pub fn tokenize_line(line: String) -> Vec<PreTokenized> {
-    let re = Regex::new("(\".*\"|\\(|\\)|\\|\\+|\\-|\\*|/|,|:=|=>|;)").unwrap();
+    let re = Regex::new("(\".*\"|\\(|\\)|\\|\\+|\\-|\\*|/|,|:=|=>|;|\\[|\\])").unwrap();
     let mut split: Vec<PreTokenized> = re
         .split_inclusive(line.as_str())
         .flat_map(|s| re.split_inclusive_left(s))
@@ -140,6 +144,7 @@ pub fn tokenize_line(line: String) -> Vec<PreTokenized> {
         .map(string_to_tokenize)
         .filter(|t| t != &PreTokenized::T(PreToken::COMMENT))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Semicolon)))
+        .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::Comma)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::LPar)))
         .filter(|t| t != &PreTokenized::T(PreToken::DEL(Delimeter::RPar)))
         .collect();
@@ -162,9 +167,9 @@ impl Scanner {
         let mut file = std::fs::File::open(path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
+        let re = Regex::new("(include )(.+)").unwrap();
         for line in contents.lines().rev() {
             if line.starts_with("include") {
-                let re = Regex::new("(include )(.+)").unwrap();
                 let include_path = re.captures(line).unwrap().get(2).unwrap().as_str();
                 self.load_file(include_path)?;
             } else {

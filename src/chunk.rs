@@ -60,20 +60,6 @@ impl Chunk {
                 self.pointer += DATA_SIZE;
                 (oc, byte_slice)
             }
-            OpCode::Return => (oc, &[]),
-            OpCode::Not => (oc, &[]),
-            OpCode::Add => (oc, &[]),
-            OpCode::Subtract => (oc, &[]),
-            OpCode::Multiply => (oc, &[]),
-            OpCode::Divide => (oc, &[]),
-            OpCode::True => (oc, &[]),
-            OpCode::False => (oc, &[]),
-            OpCode::Equal => (oc, &[]),
-            OpCode::NotEqual => (oc, &[]),
-            OpCode::LessThan => (oc, &[]),
-            OpCode::LessThanOrEqual => (oc, &[]),
-            OpCode::GreaterThan => (oc, &[]),
-            OpCode::GreaterThanOrEqual => (oc, &[]),
             OpCode::FunctionCall => {
                 const DATA_SIZE: usize = 2;
                 let byte_slice = unsafe {
@@ -118,6 +104,18 @@ impl Chunk {
                 self.pointer += DATA_SIZE;
                 (oc, byte_slice)
             }
+            OpCode::ConstructArray => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
+            _ => (oc, &[]),
         }
     }
 }

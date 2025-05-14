@@ -1,24 +1,44 @@
 use crate::parser::Literal;
 use ordered_float::OrderedFloat;
+use std::boxed::Box;
 use std::boxed::ThinBox;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
 
-#[derive(Debug)]
-pub enum PrimType {
+#[derive(Debug, Clone)]
+pub enum Type {
     Float,
     Int,
     Bool,
     String,
-    Array(ThinBox<PrimType>),
+    Array(Box<Type>),
+    AnyType,
 }
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Type::Float, Type::Float) => true,
+            (Type::Int, Type::Int) => true,
+            (Type::Bool, Type::Bool) => true,
+            (Type::String, Type::String) => true,
+            (Type::Array(x), Type::Array(y)) => *x == *y,
+            (Type::AnyType, Type::Array(_)) => true,
+            (Type::Array(_), Type::AnyType) => true,
+            (Type::AnyType, Type::AnyType) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Type {}
 
 pub union ValueUnion {
     pub f: OrderedFloat<f64>,
     pub i: i64,
     pub b: bool,
     pub a: ManuallyDrop<ThinBox<Vec<ValueUnion>>>,
-    pub s: ManuallyDrop<ThinBox<String>>,
+    pub s: ManuallyDrop<ThinBox<String>>, // TODO ThinBox<str>
 }
 
 impl Clone for ValueUnion {
@@ -31,14 +51,23 @@ pub struct Value {
     pub value: ValueUnion,
 }
 
+impl Clone for Value {
+    fn clone(&self) -> Self {
+        Value {
+            value: self.value.clone(),
+        }
+    }
+}
+
 impl Value {
-    pub fn fmt(&self, t: &PrimType, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn fmt(&self, t: &Type, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match t {
-            PrimType::Float => self.fmt_float(&self.value, f),
-            PrimType::Int => self.fmt_int(&self.value, f),
-            PrimType::Bool => self.fmt_bool(&self.value, f),
-            PrimType::String => self.fmt_string(&self.value, f),
-            PrimType::Array(sub_type) => self.fmt_array(&self.value, sub_type, f),
+            Type::Float => self.fmt_float(&self.value, f),
+            Type::Int => self.fmt_int(&self.value, f),
+            Type::Bool => self.fmt_bool(&self.value, f),
+            Type::String => self.fmt_string(&self.value, f),
+            Type::Array(sub_type) => self.fmt_array(&self.value, &sub_type.deref().clone(), f),
+            Type::AnyType => panic!("AnyType"),
         }
     }
     fn fmt_float(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,24 +80,38 @@ impl Value {
         write!(f, "{}", unsafe { v.b })
     }
     fn fmt_string(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", unsafe { v.s.as_str() })
+        write!(f, "{}", unsafe { v.s.deref() })
     }
     fn fmt_array(
         &self,
         v: &ValueUnion,
-        sub_type: &PrimType,
+        sub_type: &Type,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
         for item in unsafe { v.a.deref().iter() } {
             match sub_type {
-                PrimType::Float => self.fmt_float(&item, f)?,
-                PrimType::Int => self.fmt_int(&item, f)?,
-                PrimType::Bool => self.fmt_bool(&item, f)?,
-                PrimType::String => self.fmt_string(&item, f)?,
-                PrimType::Array(sub_type) => self.fmt_array(&item, sub_type, f)?,
+                Type::Float => self.fmt_float(&item, f)?,
+                Type::Int => self.fmt_int(&item, f)?,
+                Type::Bool => self.fmt_bool(&item, f)?,
+                Type::String => self.fmt_string(&item, f)?,
+                Type::Array(sub_sub_type) => {
+                    self.fmt_array(&item, &sub_sub_type.deref().clone(), f)?
+                }
+                Type::AnyType => panic!("AnyType"),
             }
         }
         Ok(())
+    }
+}
+
+pub struct PrintValWrapper<'v> {
+    pub val: &'v Value,
+    pub t: &'v Type,
+}
+
+impl std::fmt::Display for PrintValWrapper<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.val.fmt(self.t, f)
     }
 }
 

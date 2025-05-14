@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::tokenizer::*;
+use crate::value::Type;
 use ordered_float::OrderedFloat;
 use std::error::Error;
 use std::fmt;
@@ -72,10 +73,10 @@ impl fmt::Display for ParsingError {
 }
 impl Error for ParsingError {}
 
-fn parse_literal(s: String, desired_type: Option<Type>) -> Result<Token, ParsingError> {
+fn parse_literal(s: String) -> Result<Token, ParsingError> {
     if s.starts_with("'") && s.ends_with("'") {
         Ok(Token::Lit(Literal::String(s[1..s.len() - 1].to_owned())))
-    } else if s.parse::<i64>().is_ok() && desired_type.unwrap_or(Type::Int) == Type::Int {
+    } else if s.parse::<i64>().is_ok() {
         Ok(Token::Lit(Literal::Integer(s.parse().unwrap())))
     } else if s.parse::<f64>().is_ok() {
         Ok(Token::Lit(Literal::Float(OrderedFloat(s.parse().unwrap()))))
@@ -94,7 +95,7 @@ fn parse_symbol(s: String) -> Result<Token, ParsingError> {
     Ok(Token::Symb(Symbol::new(s)))
 }
 
-fn parse_word(s: String, desired_type: Option<Type>) -> Result<Token, ParsingError> {
+fn parse_word(s: String) -> Result<Token, ParsingError> {
     if s.starts_with("\"")
         || s.starts_with("0")
         || s.starts_with("1")
@@ -110,24 +111,71 @@ fn parse_word(s: String, desired_type: Option<Type>) -> Result<Token, ParsingErr
         || s == "true"
         || s == "false"
     {
-        parse_literal(s, desired_type)
+        parse_literal(s)
     } else {
         Ok(Token::Symb(Symbol::new(s)))
     }
 }
 
+fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
+    let mut out: Vec<PreTokenized> = Vec::new();
+    let mut i: usize = 0;
+    while i < tokens.len() {
+        match tokens[i] {
+            PreTokenized::T(PreToken::DEL(Delimeter::LBracket)) => {
+                let mut count: isize = 1;
+                let mut max: usize = 1;
+                let mut j = i + 1;
+                while (count != 0) && j < tokens.len() {
+                    match tokens[j] {
+                        PreTokenized::T(PreToken::DEL(Delimeter::LBracket)) => {
+                            count += 1;
+                            max += 1;
+                        }
+                        PreTokenized::T(PreToken::DEL(Delimeter::RBracket)) => count -= 1,
+                        PreTokenized::T(PreToken::TYPE(_)) => {}
+                        _ => {
+                            count = -1;
+                            break;
+                        }
+                    }
+                    j += 1;
+                }
+                if count == 0 {
+                    if let PreTokenized::T(PreToken::TYPE(t)) = &tokens[i + max] {
+                        let mut arr_type = t.clone();
+                        for _ in 0..max {
+                            arr_type = Type::Array(Box::new(arr_type));
+                        }
+                        out.push(PreTokenized::T(PreToken::TYPE(arr_type)));
+                        i = j;
+                    } else {
+                        panic!("invalid array type");
+                    }
+                } else if count == -1 {
+                    out.push(tokens[i].clone());
+                    i += 1;
+                } else {
+                    panic!("unclosed array");
+                }
+            }
+            _ => {
+                out.push(tokens[i].clone());
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
 fn parse_line(line: &str) -> Result<Vec<Token>, ParsingError> {
     let mut out: Vec<Token> = Vec::new();
-    let pre_tokens = tokenize_line(line.to_string());
-    let mut desired_type: Option<Type> = None;
-    for token in pre_tokens {
-        if let PreTokenized::T(PreToken::TYPE(t)) = token {
-            desired_type = Some(t);
-        }
+    let pre_tokens = collapse_array_types(tokenize_line(line.to_string()));
+    for token in pre_tokens.iter() {
         match token {
-            PreTokenized::T(t) => out.push(Token::Lang(t)),
+            PreTokenized::T(t) => out.push(Token::Lang(t.clone())),
             PreTokenized::S(s) => {
-                out.push(parse_word(s, desired_type)?);
+                out.push(parse_word(s.to_string())?);
             }
         }
     }

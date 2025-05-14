@@ -1,6 +1,9 @@
 use crate::chunk::Chunk;
 use crate::common::OpCode;
-use crate::value::{PrimType, Value, ValueUnion};
+use crate::value::{PrintValWrapper, Type, Value, ValueUnion};
+use std::boxed::ThinBox;
+use std::mem::ManuallyDrop;
+use std::ops::DerefMut;
 
 pub struct VM {
     program_data: Vec<Chunk>,
@@ -9,6 +12,7 @@ pub struct VM {
     function_stack: Vec<(usize, Vec<Value>)>,
     main_pointer: Option<usize>,
     position_stack: Vec<usize>,
+    main_type: Option<Type>,
 }
 
 impl VM {
@@ -20,6 +24,7 @@ impl VM {
             function_stack: Vec::new(),
             main_pointer: None,
             position_stack: Vec::new(),
+            main_type: None,
         }
     }
     pub fn give_data(&mut self, data: Chunk) {
@@ -30,8 +35,9 @@ impl VM {
             self.constants.push(c);
         }
     }
-    pub fn set_main(&mut self, main_pointer: usize) {
+    pub fn set_main(&mut self, main_pointer: usize, main_type: Type) {
         self.main_pointer = Some(main_pointer);
+        self.main_type = Some(main_type);
     }
     pub fn run(&mut self) -> Result<(), String> {
         self.function_stack
@@ -43,7 +49,13 @@ impl VM {
                 OpCode::Return => {
                     if self.function_stack.last().unwrap().0 == self.main_pointer.unwrap() {
                         self.function_stack.pop();
-                        println!("{:?}", self.value_stack.last().unwrap());
+                        println!(
+                            "{}",
+                            PrintValWrapper {
+                                val: self.value_stack.last().unwrap(),
+                                t: &self.main_type.as_ref().unwrap()
+                            }
+                        );
                         return Ok(());
                     }
                     self.function_stack.pop();
@@ -54,72 +66,66 @@ impl VM {
                     let constant = &self.constants[data[0] as usize];
                     self.value_stack_push(&[constant.clone()]);
                 }
-                OpCode::Add => {
+                OpCode::AddI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.f += b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.i += b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.i += b.value.i;
                     }
                 }
-                OpCode::Subtract => {
+                OpCode::AddF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.f -= b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.i -= b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.f += b.value.f;
                     }
                 }
-                OpCode::Multiply => {
+                OpCode::SubtractI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.f *= b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.i *= b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.i -= b.value.i;
                     }
                 }
-                OpCode::Divide => {
+                OpCode::SubtractF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.f /= b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.i /= b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.f -= b.value.f;
+                    }
+                }
+                OpCode::MultiplyI => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.i *= b.value.i;
+                    }
+                }
+                OpCode::MultiplyF => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.f *= b.value.f;
+                    }
+                }
+                OpCode::DivideI => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.i /= b.value.i;
+                    }
+                }
+                OpCode::DivideF => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.f /= b.value.f;
                     }
                 }
                 OpCode::True => self.value_stack_push(&[Value {
-                    t: PrimType::Bool,
                     value: ValueUnion { b: true },
                 }]),
                 OpCode::False => self.value_stack_push(&[Value {
-                    t: PrimType::Bool,
                     value: ValueUnion { b: false },
                 }]),
                 OpCode::FunctionCall => {
@@ -145,85 +151,89 @@ impl VM {
                         a.value.b = !a.value.b;
                     }
                 }
-                OpCode::Equal => {
+                OpCode::EqualI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
                         a.value.b = a.value.i == b.value.i;
-                        a.t = PrimType::Bool;
                     }
                 }
-                OpCode::NotEqual => {
+                OpCode::EqualF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i != b.value.i;
-                        a.t = PrimType::Bool;
+                        a.value.b = a.value.f == b.value.f;
                     }
                 }
-                OpCode::LessThan => {
+                OpCode::EqualB => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.b = a.value.f < b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.b = a.value.i < b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.b = a.value.b == b.value.b;
                     }
-                    a.t = PrimType::Bool;
                 }
-                OpCode::GreaterThan => {
+                OpCode::EqualS => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.b = a.value.f > b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.b = a.value.i > b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.b = a.value.s.as_str() == b.value.s.as_str();
                     }
-                    a.t = PrimType::Bool;
                 }
-                OpCode::LessThanOrEqual => {
+                OpCode::LessThanI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.b = a.value.f <= b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.b = a.value.i <= b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.b = a.value.i < b.value.i;
                     }
-                    a.t = PrimType::Bool;
                 }
-                OpCode::GreaterThanOrEqual => {
+                OpCode::LessThanF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        match a.t {
-                            PrimType::Float => {
-                                a.value.b = a.value.f >= b.value.f;
-                            }
-                            PrimType::Int => {
-                                a.value.b = a.value.i >= b.value.i;
-                            }
-                            _ => panic!(),
-                        }
+                        a.value.b = a.value.f < b.value.f;
                     }
-                    a.t = PrimType::Bool;
+                }
+                OpCode::GreaterThanI => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.i > b.value.i;
+                    }
+                }
+                OpCode::GreaterThanF => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.f > b.value.f;
+                    }
+                }
+                OpCode::LessThanOrEqualI => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.i <= b.value.i;
+                    }
+                }
+                OpCode::LessThanOrEqualF => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.f <= b.value.f;
+                    }
+                }
+                OpCode::GreaterThanOrEqualI => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.i >= b.value.i;
+                    }
+                }
+                OpCode::GreaterThanOrEqualF => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.f >= b.value.f;
+                    }
                 }
                 OpCode::Advance => {
                     let amount = data[0] as usize;
@@ -241,6 +251,50 @@ impl VM {
                         self.program_data[self.function_stack.last().unwrap().0]
                             .set_pointer(current + amount);
                     }
+                }
+                OpCode::ConstructArray => {
+                    let size = data[0] as usize;
+                    let mut arr = Vec::new();
+                    arr.resize(size, ValueUnion { i: 0 });
+                    for i in 0..size {
+                        arr[size - i - 1] = self.value_stack_pop().value;
+                    }
+                    arr.reverse();
+                    self.value_stack_push(&[Value {
+                        value: ValueUnion {
+                            a: ManuallyDrop::new(ThinBox::new(arr)),
+                        },
+                    }]);
+                }
+                OpCode::ConcatArr => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
+                        let b_arr = b.value.a.as_ref();
+                        a_arr.extend_from_slice(b_arr);
+                    }
+                }
+                OpCode::ConcatStr => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        let a_str: &mut String = a.value.s.deref_mut();
+                        let b_str = b.value.s.as_str();
+                        a_str.push_str(b_str);
+                    }
+                }
+                OpCode::Index => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
+                        let b_val = b.value.i;
+                        a.value = a_arr[b_val as usize].clone();
+                    }
+                }
+                OpCode::NullCode => {
+                    panic!("NullCode");
                 }
             }
         }

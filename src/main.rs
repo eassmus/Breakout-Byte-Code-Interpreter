@@ -9,24 +9,31 @@ mod vm;
 
 use compiler::compile;
 use parser::parse;
+use std::env;
 use std::time::SystemTime;
 use vm::VM;
 
 fn main() -> Result<(), String> {
-    let mut vm = VM::new();
-    let mut tokens = parse("test.bo").unwrap();
+    let args: Vec<String> = env::args().collect();
+    let path = match args.get(1) {
+        Some(path) => path,
+        None => return Err("No source path given".to_string()),
+    };
+    let mut tokens = parse(path).unwrap();
 
     let mut function_signatures = Vec::new();
     let mut constants = Vec::new();
-    let (chunks, main_loc) = compile(&mut tokens, &mut function_signatures, &mut constants)?;
-    println!("Compiled Bytecode:");
+    let (chunks, main_loc, main_type) =
+        compile(&mut tokens, &mut function_signatures, &mut constants)?;
+
+    let mut vm = VM::new();
     for chunk in chunks {
-        println!("{:?}", chunk);
         vm.give_data(chunk);
     }
-    println!("Executing");
     vm.give_constants(constants);
-    vm.set_main(main_loc.unwrap());
+    vm.set_main(main_loc.unwrap(), main_type.unwrap());
+
+    println!("Executing");
     let exec_start = SystemTime::now();
     vm.run()?;
     let exec_end = SystemTime::now();

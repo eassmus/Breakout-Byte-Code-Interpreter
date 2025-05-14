@@ -54,13 +54,44 @@ fn consume_eval(
             token_stream.pop();
             Ok(l.get_type())
         }
+        Some(Token::Lang(PreToken::DEL(Delimeter::LBracket))) => {
+            token_stream.pop();
+            let mut t: Option<Type> = None;
+            let mut num: u8 = 0;
+            while get_next(token_stream) != Some(Token::Lang(PreToken::DEL(Delimeter::RBracket))) {
+                let in_type = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if t.is_none() {
+                    t = Some(in_type);
+                } else if t.clone().unwrap() != in_type {
+                    return Err(format!(
+                        "Type mismatch, expected {:?}, got {:?}",
+                        t.clone().unwrap(),
+                        in_type
+                    ));
+                }
+                num += 1;
+            }
+            chunk.add_opcode(OpCode::ConstructArray);
+            chunk.add_byte(num);
+            token_stream.pop();
+            if t.is_none() {
+                return Ok(Type::AnyType);
+            }
+            Ok(Type::Array(Box::new(t.unwrap())))
+        }
         Some(Token::Symb(s)) => {
             for (i, item) in local_variables.iter().enumerate() {
                 if item.0 == s.name() {
                     chunk.add_opcode(OpCode::StackLoadLocalVar);
                     chunk.add_byte(i as u8);
                     token_stream.pop();
-                    return Ok(local_variables[i].1);
+                    return Ok(local_variables[i].1.clone());
                 }
             }
             for (i, item) in function_signatures.iter().enumerate() {
@@ -75,13 +106,16 @@ fn consume_eval(
                             constants,
                         )?;
                         if t != function_signatures[i].1[j] {
-                            return Err("Type mismatch".to_string());
+                            return Err(format!(
+                                "Type mismatch, expected {:?}, got {:?}",
+                                function_signatures[i].1[j], t
+                            ));
                         }
                     }
                     chunk.add_opcode(OpCode::FunctionCall);
                     chunk.add_byte(i as u8);
                     chunk.add_byte(item.1.len() as u8);
-                    return Ok(function_signatures[i].2);
+                    return Ok(function_signatures[i].2.clone());
                 }
             }
             Err("Unknown symbol".to_string())
@@ -104,12 +138,15 @@ fn consume_eval(
                     constants,
                 )?;
                 if type1 != type2 {
-                    return Err("Type mismatch".to_string());
+                    return Err(format!("Type mismatch, expected {type1}, got {type2}",));
                 }
-                if type1 != Type::Int && type1 != Type::Float {
-                    return Err("Type mismatch".to_string());
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::GreaterThanI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::GreaterThanF);
+                } else {
+                    return Err(format!("Type mismatch, expected {type1}, got {type2}",));
                 }
-                chunk.add_opcode(OpCode::GreaterThan);
                 Ok(Type::Bool)
             }
             Operator::Lt => {
@@ -131,10 +168,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::LessThanI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::LessThanF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::LessThan);
                 Ok(Type::Bool)
             }
             Operator::Geq => {
@@ -156,10 +196,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::GreaterThanOrEqualI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::GreaterThanOrEqualF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::GreaterThanOrEqual);
                 Ok(Type::Bool)
             }
             Operator::Leq => {
@@ -181,10 +224,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::LessThanOrEqualI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::LessThanOrEqualF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::LessThanOrEqual);
                 Ok(Type::Bool)
             }
             Operator::Plus => {
@@ -206,10 +252,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::AddI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::AddF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::Add);
                 Ok(type1)
             }
             Operator::Minus => {
@@ -231,10 +280,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::SubtractI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::SubtractF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::Subtract);
                 Ok(type1)
             }
             Operator::Mult => {
@@ -256,10 +308,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::MultiplyI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::MultiplyF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::Multiply);
                 Ok(type1)
             }
             Operator::Div => {
@@ -281,10 +336,13 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                if type1 != Type::Int && type1 != Type::Float {
+                if type1 == Type::Int {
+                    chunk.add_opcode(OpCode::DivideI);
+                } else if type1 == Type::Float {
+                    chunk.add_opcode(OpCode::DivideF);
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::Divide);
                 Ok(type1)
             }
             Operator::Cond => {
@@ -349,10 +407,16 @@ fn consume_eval(
                 if type1 != type2 {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::Equal);
+                match type1 {
+                    Type::Int => chunk.add_opcode(OpCode::EqualI),
+                    Type::Float => chunk.add_opcode(OpCode::EqualF),
+                    Type::Bool => chunk.add_opcode(OpCode::EqualB),
+                    Type::String => chunk.add_opcode(OpCode::EqualS),
+                    _ => return Err("Type mismatch".to_string()),
+                }
                 Ok(Type::Bool)
             }
-            Operator::Neq => {
+            Operator::Concat => {
                 token_stream.pop();
                 let type1 = consume_eval(
                     chunk,
@@ -368,11 +432,42 @@ fn consume_eval(
                     function_signatures,
                     constants,
                 )?;
-                if type1 != type2 {
+                if type1 == Type::String && type2 == Type::String {
+                    chunk.add_opcode(OpCode::ConcatStr);
+                    Ok(Type::String)
+                } else if let Type::Array(_) = type1
+                    && type1 == type2
+                {
+                    chunk.add_opcode(OpCode::ConcatArr);
+                    Ok(type1)
+                } else {
                     return Err("Type mismatch".to_string());
                 }
-                chunk.add_opcode(OpCode::NotEqual);
-                Ok(Type::Bool)
+            }
+            Operator::Index => {
+                token_stream.pop();
+                let type1 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                let type2 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if let Type::Array(t) = type1
+                    && type2 == Type::Int
+                {
+                    chunk.add_opcode(OpCode::Index);
+                    Ok(*t)
+                } else {
+                    return Err("Type mismatch".to_string());
+                }
             }
             _ => todo!(),
         },
@@ -409,7 +504,12 @@ fn consume_def(
     token_stream.pop();
     let func_name = match get_next(token_stream) {
         Some(Token::Symb(n)) => n.name(),
-        _ => return Err("Expected function name".to_string()),
+        _ => {
+            return Err(format!(
+                "Expected function name, got {:?}",
+                get_next(token_stream)
+            ));
+        }
     };
     token_stream.pop();
     if func_name == "main" {
@@ -432,30 +532,32 @@ fn consume_def(
 
             func_signatures.push((
                 func_name.clone(),
-                local_variables.iter().map(|(_, t)| *t).collect(),
-                t,
+                local_variables.iter().map(|(_, lvt)| lvt.clone()).collect(),
+                t.clone(),
             ));
 
-            if t != consume_eval(
+            let eval_type = consume_eval(
                 &mut chunk,
                 token_stream,
                 &local_variables,
                 func_signatures,
                 constants,
-            )? {
-                return Err("Type mismatch".to_string());
+            )?;
+            if t != eval_type {
+                return Err(format!("Type mismatch, expected {t} got {eval_type}",));
             }
         }
         _ => {
-            func_signatures.push((func_name.clone(), Vec::new(), t));
-            if t != consume_eval(
+            func_signatures.push((func_name.clone(), Vec::new(), t.clone()));
+            let eval_type = consume_eval(
                 &mut chunk,
                 token_stream,
                 &local_variables,
                 func_signatures,
                 constants,
-            )? {
-                return Err("Type mismatch".to_string());
+            )?;
+            if t != eval_type {
+                return Err(format!("Type mismatch, expected {t} got {eval_type}",));
             }
         }
     }
@@ -468,21 +570,23 @@ pub fn compile(
     token_stream: &mut Vec<Token>,
     func_signatures: &mut Vec<(String, Vec<Type>, Type)>,
     constants: &mut Vec<Value>,
-) -> Result<(Vec<Chunk>, Option<usize>), String> {
+) -> Result<(Vec<Chunk>, Option<usize>, Option<Type>), String> {
     let mut chunks: Vec<Chunk> = Vec::new();
     let mut main: Option<usize> = None;
+    let mut main_type: Option<Type> = None;
     let mut i = 0;
     while !token_stream.is_empty() {
         let (chunk, is_main) = consume_def(token_stream, func_signatures, constants)?;
-        if is_main {
-            main = Some(i);
-        }
         if chunk.is_none() {
             continue;
         }
         let chunk = chunk.unwrap();
         chunks.push(chunk);
+        if is_main {
+            main = Some(i);
+            main_type = Some(func_signatures[i].2.clone());
+        }
         i += 1;
     }
-    Ok((chunks, main))
+    Ok((chunks, main, main_type))
 }
