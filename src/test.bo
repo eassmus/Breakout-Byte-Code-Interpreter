@@ -1,1 +1,2 @@
-int main := + 4 2
+int fib := x : int => cond <= x 1 1 + fib - x 1 fib - x 2
+int main := fib 35

@@ -2,14 +2,14 @@ use std::fmt::Debug;
 
 use crate::common::OpCode;
 
-#[repr(C)]
+#[derive(Copy, Clone)]
 pub union ChunkData {
     opcode: OpCode,
     data: u8,
 }
 impl Debug for ChunkData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", unsafe { self.opcode })?;
+        write!(f, "{:?}", unsafe { OpCode::from(self.data) })?;
         write!(f, "{:?}", unsafe { self.data })
     }
 }
@@ -30,12 +30,19 @@ impl Chunk {
     pub fn add_byte(&mut self, data: u8) {
         self.data.push(ChunkData { data });
     }
-    pub fn add_data(&mut self, data: &mut Vec<ChunkData>) {
-        self.data.append(data);
+    pub fn get_length(&mut self) -> usize {
+        self.data.len()
+    }
+    pub fn add_chunk(&mut self, other: &mut Chunk) {
+        self.data.append(other.data.as_mut());
     }
     #[inline]
     pub fn set_pointer(&mut self, pointer: usize) {
         self.pointer = pointer;
+    }
+    #[inline]
+    pub fn get_pointer(&mut self) -> usize {
+        self.pointer
     }
     #[inline]
     pub fn get_instruction(&mut self) -> (OpCode, &[u8]) {
@@ -67,9 +74,8 @@ impl Chunk {
             OpCode::LessThanOrEqual => (oc, &[]),
             OpCode::GreaterThan => (oc, &[]),
             OpCode::GreaterThanOrEqual => (oc, &[]),
-            OpCode::LoadLocalVar => (oc, &[]),
             OpCode::FunctionCall => {
-                const DATA_SIZE: usize = 1;
+                const DATA_SIZE: usize = 2;
                 let byte_slice = unsafe {
                     std::slice::from_raw_parts(
                         self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
@@ -80,6 +86,28 @@ impl Chunk {
                 (oc, byte_slice)
             }
             OpCode::StackLoadLocalVar => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
+            OpCode::Advance => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
+            OpCode::AdvanceIfFalse => {
                 const DATA_SIZE: usize = 1;
                 let byte_slice = unsafe {
                     std::slice::from_raw_parts(

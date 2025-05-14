@@ -17,35 +17,40 @@ pub union ValueUnion {
     pub c: char,
 }
 
-impl std::fmt::Debug for ValueUnion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", unsafe { self.i })
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Value {
     pub t: PrimType,
     pub value: ValueUnion,
 }
 
-pub fn val_from_literal(lit: &Literal) -> Value {
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.t {
+            PrimType::Float => write!(f, "{}", unsafe { self.value.f }),
+            PrimType::Int => write!(f, "{}", unsafe { self.value.i }),
+            PrimType::Bool => write!(f, "{}", unsafe { self.value.b }),
+            PrimType::Char => write!(f, "{}", unsafe { self.value.c }),
+        }
+    }
+}
+
+pub fn val_from_literal(lit: Literal) -> Value {
     match lit {
         Literal::Float(f) => Value {
             t: PrimType::Float,
-            value: ValueUnion { f: *f },
+            value: ValueUnion { f },
         },
         Literal::Integer(i) => Value {
             t: PrimType::Int,
-            value: ValueUnion { i: *i },
+            value: ValueUnion { i },
         },
         Literal::Bool(b) => Value {
             t: PrimType::Bool,
-            value: ValueUnion { b: *b },
+            value: ValueUnion { b },
         },
         Literal::Char(c) => Value {
             t: PrimType::Char,
-            value: ValueUnion { c: *c },
+            value: ValueUnion { c },
         },
     }
 }
