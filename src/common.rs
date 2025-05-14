@@ -2,11 +2,25 @@
 pub enum OpCode {
     Return,
     Constant,
-    Negate,
+
     Add,
     Subtract,
     Multiply,
     Divide,
+
     True,
     False,
+
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+
+    Not,
+
+    LoadLocalVar,
+    StackLoadLocalVar,
+    FunctionCall,
 }

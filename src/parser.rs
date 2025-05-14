@@ -27,18 +27,16 @@ impl std::fmt::Display for Symbol {
 pub enum Literal {
     Integer(i64),
     Float(OrderedFloat<f64>),
-    String(String),
+    Char(char),
     Bool(bool),
-    Void,
 }
 impl Literal {
     pub fn get_type(&self) -> Type {
         match self {
             Literal::Integer(_) => Type::Int,
             Literal::Float(_) => Type::Float,
-            Literal::String(_) => Type::Str,
+            Literal::Char(_) => Type::Char,
             Literal::Bool(_) => Type::Bool,
-            Literal::Void => Type::NoType,
         }
     }
 }
@@ -48,9 +46,8 @@ impl std::fmt::Display for Literal {
         match self {
             Literal::Integer(n) => write!(f, "{}", n),
             Literal::Float(n) => write!(f, "{}", n),
-            Literal::String(s) => write!(f, "{}", s),
+            Literal::Char(c) => write!(f, "{}", c),
             Literal::Bool(b) => write!(f, "{}", b),
-            Literal::Void => write!(f, "void"),
         }
     }
 }
@@ -76,8 +73,8 @@ impl fmt::Display for ParsingError {
 impl Error for ParsingError {}
 
 fn parse_literal(s: String, desired_type: Option<Type>) -> Result<Token, ParsingError> {
-    if s.starts_with("\"") && s.ends_with("\"") {
-        Ok(Token::Lit(Literal::String(s[1..s.len() - 1].to_string())))
+    if s.starts_with("'") && s.ends_with("'") {
+        Ok(Token::Lit(Literal::Char(s.chars().nth(1).unwrap())))
     } else if s.parse::<i64>().is_ok() && desired_type.unwrap_or(Type::Int) == Type::Int {
         Ok(Token::Lit(Literal::Integer(s.parse().unwrap())))
     } else if s.parse::<f64>().is_ok() {
@@ -144,5 +141,6 @@ pub fn parse(path: &str) -> Result<Vec<Token>, Box<dyn Error>> {
     while let Some(line) = scanner.get_next_line() {
         out.append(&mut parse_line(&line)?);
     }
+    out.reverse();
     Ok(out)
 }

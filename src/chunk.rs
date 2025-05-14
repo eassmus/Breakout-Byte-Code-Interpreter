@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::common::OpCode;
 
 #[repr(C)]
@@ -5,7 +7,14 @@ pub union ChunkData {
     opcode: OpCode,
     data: u8,
 }
+impl Debug for ChunkData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", unsafe { self.opcode })?;
+        write!(f, "{:?}", unsafe { self.data })
+    }
+}
 
+#[derive(Debug)]
 pub struct Chunk {
     data: Vec<ChunkData>,
     pointer: usize,
@@ -14,6 +23,12 @@ pub struct Chunk {
 impl Chunk {
     pub fn new(data: Vec<ChunkData>) -> Chunk {
         Chunk { data, pointer: 0 }
+    }
+    pub fn add_opcode(&mut self, opcode: OpCode) {
+        self.data.push(ChunkData { opcode });
+    }
+    pub fn add_byte(&mut self, data: u8) {
+        self.data.push(ChunkData { data });
     }
     pub fn add_data(&mut self, data: &mut Vec<ChunkData>) {
         self.data.append(data);
@@ -25,17 +40,56 @@ impl Chunk {
     #[inline]
     pub fn get_instruction(&mut self) -> (OpCode, &[u8]) {
         let oc: OpCode = unsafe { self.data[self.pointer].opcode };
+        self.pointer += 1;
         match oc {
-            OpCode::Return => {
-                const DATA_SIZE: usize = 0;
+            OpCode::Constant => {
+                const DATA_SIZE: usize = 1;
                 let byte_slice = unsafe {
-                    let ptr = self.data[self.pointer].data as *const u8;
-                    std::slice::from_raw_parts(ptr as *const u8, 1 + DATA_SIZE)
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
                 };
-                self.pointer += 1 + DATA_SIZE;
+                self.pointer += DATA_SIZE;
                 (oc, byte_slice)
             }
-            _ => todo!(),
+            OpCode::Return => (oc, &[]),
+            OpCode::Not => (oc, &[]),
+            OpCode::Add => (oc, &[]),
+            OpCode::Subtract => (oc, &[]),
+            OpCode::Multiply => (oc, &[]),
+            OpCode::Divide => (oc, &[]),
+            OpCode::True => (oc, &[]),
+            OpCode::False => (oc, &[]),
+            OpCode::Equal => (oc, &[]),
+            OpCode::NotEqual => (oc, &[]),
+            OpCode::LessThan => (oc, &[]),
+            OpCode::LessThanOrEqual => (oc, &[]),
+            OpCode::GreaterThan => (oc, &[]),
+            OpCode::GreaterThanOrEqual => (oc, &[]),
+            OpCode::LoadLocalVar => (oc, &[]),
+            OpCode::FunctionCall => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
+            OpCode::StackLoadLocalVar => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
         }
     }
 }

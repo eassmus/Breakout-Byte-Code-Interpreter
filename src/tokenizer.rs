@@ -1,4 +1,4 @@
-use phf::{Map, phf_map};
+use phf::{phf_map, Map};
 use regex::Regex;
 use regex_split::RegexSplit;
 use std::io::Read;
@@ -15,7 +15,6 @@ pub enum Delimeter {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Keyword {
-    Func,
     Kerchow,
     Bar,
     Define,
@@ -27,18 +26,16 @@ pub enum Keyword {
 pub enum Type {
     Int,
     Float,
-    Str,
+    Char,
     Bool,
-    NoType,
 }
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Int => write!(f, "int"),
             Type::Float => write!(f, "float"),
-            Type::Str => write!(f, "str"),
             Type::Bool => write!(f, "bool"),
-            Type::NoType => write!(f, "no_type"),
+            Type::Char => write!(f, "char"),
         }
     }
 }
@@ -60,7 +57,6 @@ pub enum Operator {
     Or,
     Not,
     Nand,
-    Concat,
     Cond,
     Floor,
 }
@@ -97,7 +93,6 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 "||" => PreToken::OP(Operator::Or),
 "!" => PreToken::OP(Operator::Not),
 "!&&" => PreToken::OP(Operator::Nand),
-"concat" => PreToken::OP(Operator::Concat),
 "cond" => PreToken::OP(Operator::Cond),
 "floor" => PreToken::OP(Operator::Floor),
 "|" => PreToken::KW(Keyword::Bar),
@@ -105,10 +100,9 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 "kick" => PreToken::KW(Keyword::Kick),
 "=>" => PreToken::KW(Keyword::Kerchow),
 ":=" => PreToken::KW(Keyword::Define),
-"func" => PreToken::KW(Keyword::Func),
 "int" => PreToken::TYPE(Type::Int),
 "float" => PreToken::TYPE(Type::Float),
-"str" => PreToken::TYPE(Type::Str),
+"char" => PreToken::TYPE(Type::Char),
 "bool" => PreToken::TYPE(Type::Bool),
 "#" => PreToken::COMMENT,
 };
