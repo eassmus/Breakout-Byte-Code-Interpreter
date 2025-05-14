@@ -30,18 +30,27 @@ impl VM {
     pub fn give_data(&mut self, data: Chunk) {
         self.program_data.push(data);
     }
-    pub fn give_constants(&mut self, constants: Vec<Value>) {
+    pub fn update_constants(&mut self, constants: &Vec<Value>) {
+        self.constants.clear();
         for c in constants {
-            self.constants.push(c);
+            self.constants.push(c.clone());
         }
     }
-    pub fn set_main(&mut self, main_pointer: usize, main_type: Type) {
-        self.main_pointer = Some(main_pointer);
+    pub fn set_main(&mut self, offset: usize, main_type: Type) {
+        self.main_pointer = match self.main_pointer {
+            None => Some(offset),
+            Some(x) => Some(x + offset + 1),
+        };
         self.main_type = Some(main_type);
     }
     pub fn run(&mut self) -> Result<(), String> {
+        self.value_stack.clear();
+        self.function_stack.clear();
         self.function_stack
             .push((self.main_pointer.unwrap(), Vec::new()));
+        for item in self.program_data.iter_mut() {
+            item.set_pointer(0);
+        }
         loop {
             let (op, data) =
                 self.program_data[self.function_stack.last().unwrap().0].get_instruction();
@@ -53,7 +62,7 @@ impl VM {
                             "{}",
                             PrintValWrapper {
                                 val: self.value_stack.last().unwrap(),
-                                t: &self.main_type.as_ref().unwrap()
+                                t: self.main_type.as_ref().unwrap()
                             }
                         );
                         return Ok(());

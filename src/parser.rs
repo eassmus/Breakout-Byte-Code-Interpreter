@@ -168,8 +168,7 @@ fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
     out
 }
 
-fn parse_line(line: &str) -> Result<Vec<Token>, ParsingError> {
-    let mut out: Vec<Token> = Vec::new();
+pub fn parse_line(line: &str, out: &mut Vec<Token>) -> Result<(), ParsingError> {
     let pre_tokens = collapse_array_types(tokenize_line(line.to_string()));
     for token in pre_tokens.iter() {
         match token {
@@ -179,16 +178,15 @@ fn parse_line(line: &str) -> Result<Vec<Token>, ParsingError> {
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
-pub fn parse(path: &str) -> Result<Vec<Token>, Box<dyn Error>> {
+pub fn parse(path: &str, out: &mut Vec<Token>) -> Result<(), Box<dyn Error>> {
     let mut scanner = Scanner::new();
     scanner.load_file(path)?;
-    let mut out: Vec<Token> = Vec::new();
     while let Some(line) = scanner.get_next_line() {
-        out.append(&mut parse_line(&line)?);
+        parse_line(&line, out)?;
     }
     out.reverse();
-    Ok(out)
+    Ok(())
 }
