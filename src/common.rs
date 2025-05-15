@@ -47,6 +47,9 @@ pub enum OpCode {
 
     Index,
 
+    And,
+    Or,
+
     NullCode,
 }
 impl From<u8> for OpCode {
@@ -97,6 +100,9 @@ impl From<u8> for OpCode {
             31 => OpCode::ConcatStr,
 
             32 => OpCode::Index,
+
+            33 => OpCode::And,
+            34 => OpCode::Or,
 
             _ => OpCode::NullCode,
         }

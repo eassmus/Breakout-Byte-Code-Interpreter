@@ -302,6 +302,20 @@ impl VM {
                         a.value = a_arr[b_val as usize].clone();
                     }
                 }
+                OpCode::And => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.b && b.value.b;
+                    }
+                }
+                OpCode::Or => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.b = a.value.b || b.value.b;
+                    }
+                }
                 OpCode::NullCode => {
                     panic!("NullCode");
                 }

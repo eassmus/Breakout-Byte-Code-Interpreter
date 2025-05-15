@@ -121,6 +121,56 @@ fn consume_eval(
             Err("Unknown symbol".to_string())
         }
         Some(Token::Lang(PreToken::OP(op))) => match op {
+            Operator::Or => {
+                token_stream.pop();
+                let type1 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                let type2 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if type1 != Type::Bool {
+                    return Err(format!("Type mismatch, expected bool, got {type1}",));
+                }
+                if type2 != Type::Bool {
+                    return Err(format!("Type mismatch, expected bool, got {type2}",));
+                }
+                chunk.add_opcode(OpCode::Or);
+                Ok(Type::Bool)
+            }
+            Operator::And => {
+                token_stream.pop();
+                let type1 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                let type2 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if type1 != Type::Bool {
+                    return Err(format!("Type mismatch, expected bool, got {type1}",));
+                }
+                if type2 != Type::Bool {
+                    return Err(format!("Type mismatch, expected bool, got {type2}",));
+                }
+                chunk.add_opcode(OpCode::And);
+                Ok(Type::Bool)
+            }
             Operator::Gt => {
                 token_stream.pop();
                 let type1 = consume_eval(
