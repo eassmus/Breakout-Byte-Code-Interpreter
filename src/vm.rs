@@ -283,27 +283,28 @@ impl VM {
                     }]);
                 }
                 OpCode::ConcatArr => {
-                    let b = self.value_stack_pop();
+                    let mut b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
-                        let b_arr = b.value.a.as_ref();
-                        a_arr.extend_from_slice(b_arr);
+                        a_arr.extend_from_slice(&b.value.a);
+                        ManuallyDrop::drop(&mut b.value.a);
                     }
                 }
                 OpCode::ConcatStr => {
-                    let b = self.value_stack_pop();
+                    let mut b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_str: &mut String = a.value.s.deref_mut();
-                        let b_str = b.value.s.as_str();
-                        a_str.push_str(b_str);
+                        a_str.push_str(b.value.s.as_str());
+                        ManuallyDrop::drop(&mut b.value.s);
                     }
                 }
                 OpCode::LenArr => {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let len = a.value.a.len();
+                        ManuallyDrop::drop(&mut a.value.a);
                         a.value.i = len as i64;
                     }
                 }
@@ -311,6 +312,7 @@ impl VM {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let len = a.value.s.len();
+                        ManuallyDrop::drop(&mut a.value.s);
                         a.value.i = len as i64;
                     }
                 }
@@ -319,8 +321,9 @@ impl VM {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
-                        let b_val = b.value.i;
-                        a.value = a_arr[b_val as usize].clone();
+                        let val = a_arr[b.value.i as usize].clone();
+                        ManuallyDrop::drop(&mut a.value.a);
+                        a.value = val;
                     }
                 }
                 OpCode::And => {
@@ -335,6 +338,22 @@ impl VM {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         a.value.b = a.value.b || b.value.b;
+                    }
+                }
+                OpCode::DropArr => {
+                    let index = data[0] as usize;
+                    let _count = data[1] as usize;
+                    // TODO: RECURSIVE DROP
+                    unsafe {
+                        ManuallyDrop::drop(
+                            &mut self.function_stack.last_mut().unwrap().1[index].value.a,
+                        );
+                    }
+                }
+                OpCode::DropStr => {
+                    let mut a = self.value_stack_pop();
+                    unsafe {
+                        ManuallyDrop::drop(&mut a.value.s);
                     }
                 }
                 OpCode::NullCode => {

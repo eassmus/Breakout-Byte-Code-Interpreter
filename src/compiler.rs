@@ -540,7 +540,7 @@ fn consume_eval(
                     chunk.add_opcode(OpCode::Index);
                     Ok(*t)
                 } else {
-                    return Err("Type mismatch".to_string());
+                    Err("Type mismatch".to_string())
                 }
             }
             Operator::Length => {
@@ -638,6 +638,24 @@ fn consume_def(
             )?;
             if t != eval_type {
                 return Err(format!("Type mismatch, expected {t} got {eval_type}",));
+            }
+
+            for (i, (_, t)) in local_variables.iter().enumerate() {
+                if let Type::Array(_) = t {
+                    let mut count = 0;
+                    let mut inner_type = t;
+                    while let Type::Array(t) = inner_type {
+                        count += 1;
+                        inner_type = t;
+                    }
+                    chunk.add_opcode(OpCode::DropArr);
+                    chunk.add_byte(i as u8);
+                    chunk.add_byte(count as u8);
+                }
+                if Type::String == *t {
+                    chunk.add_opcode(OpCode::DropStr);
+                    chunk.add_byte(i as u8);
+                }
             }
         }
         _ => {

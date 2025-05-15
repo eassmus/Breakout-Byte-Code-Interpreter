@@ -48,6 +48,9 @@ pub enum OpCode {
     LenArr,
     LenStr,
 
+    DropArr,
+    DropStr,
+
     Index,
 
     And,
@@ -107,12 +110,15 @@ impl From<u8> for OpCode {
             32 => OpCode::LenArr,
             33 => OpCode::LenStr,
 
-            34 => OpCode::Index,
+            34 => OpCode::DropArr,
+            35 => OpCode::DropStr,
 
-            35 => OpCode::And,
-            36 => OpCode::Or,
+            36 => OpCode::Index,
 
-            37 => OpCode::Mod,
+            37 => OpCode::And,
+            38 => OpCode::Or,
+
+            39 => OpCode::Mod,
 
             _ => OpCode::NullCode,
         }

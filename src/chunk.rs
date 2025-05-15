@@ -49,6 +49,28 @@ impl Chunk {
         let oc: OpCode = unsafe { self.data[self.pointer].opcode };
         self.pointer += 1;
         match oc {
+            OpCode::DropArr => {
+                const DATA_SIZE: usize = 2;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
+            OpCode::DropStr => {
+                const DATA_SIZE: usize = 1;
+                let byte_slice = unsafe {
+                    std::slice::from_raw_parts(
+                        self.data[self.pointer..self.pointer + DATA_SIZE].as_ptr() as *const u8,
+                        DATA_SIZE,
+                    )
+                };
+                self.pointer += DATA_SIZE;
+                (oc, byte_slice)
+            }
             OpCode::Constant => {
                 const DATA_SIZE: usize = 1;
                 let byte_slice = unsafe {
