@@ -45,10 +45,15 @@ pub enum OpCode {
     ConcatArr,
     ConcatStr,
 
+    LenArr,
+    LenStr,
+
     Index,
 
     And,
     Or,
+
+    Mod,
 
     NullCode,
 }
@@ -99,10 +104,15 @@ impl From<u8> for OpCode {
             30 => OpCode::ConcatArr,
             31 => OpCode::ConcatStr,
 
-            32 => OpCode::Index,
+            32 => OpCode::LenArr,
+            33 => OpCode::LenStr,
 
-            33 => OpCode::And,
-            34 => OpCode::Or,
+            34 => OpCode::Index,
+
+            35 => OpCode::And,
+            36 => OpCode::Or,
+
+            37 => OpCode::Mod,
 
             _ => OpCode::NullCode,
         }

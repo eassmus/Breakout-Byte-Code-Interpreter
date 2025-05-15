@@ -81,7 +81,7 @@ fn consume_eval(
             chunk.add_byte(num);
             token_stream.pop();
             if t.is_none() {
-                return Ok(Type::AnyType);
+                t = Some(Type::AnyType);
             }
             Ok(Type::Array(Box::new(t.unwrap())))
         }
@@ -395,6 +395,30 @@ fn consume_eval(
                 }
                 Ok(type1)
             }
+            Operator::Mod => {
+                token_stream.pop();
+                let type1 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                let type2 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if type1 != Type::Int || type2 != Type::Int {
+                    return Err(format!(
+                        "Type mismatch, expected ints, got {type1}, {type2}",
+                    ));
+                }
+                chunk.add_opcode(OpCode::Mod);
+                Ok(Type::Int)
+            }
             Operator::Cond => {
                 token_stream.pop();
                 let cond_type = consume_eval(
@@ -455,7 +479,7 @@ fn consume_eval(
                     constants,
                 )?;
                 if type1 != type2 {
-                    return Err("Type mismatch".to_string());
+                    return Err(format!("Type mismatch, got {type1} and {type2}",));
                 }
                 match type1 {
                     Type::Int => chunk.add_opcode(OpCode::EqualI),
@@ -515,6 +539,25 @@ fn consume_eval(
                 {
                     chunk.add_opcode(OpCode::Index);
                     Ok(*t)
+                } else {
+                    return Err("Type mismatch".to_string());
+                }
+            }
+            Operator::Length => {
+                token_stream.pop();
+                let type1 = consume_eval(
+                    chunk,
+                    token_stream,
+                    local_variables,
+                    function_signatures,
+                    constants,
+                )?;
+                if let Type::Array(_) = type1 {
+                    chunk.add_opcode(OpCode::LenArr);
+                    Ok(Type::Int)
+                } else if let Type::String = type1 {
+                    chunk.add_opcode(OpCode::LenStr);
+                    Ok(Type::Int)
                 } else {
                     return Err("Type mismatch".to_string());
                 }

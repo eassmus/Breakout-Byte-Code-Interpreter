@@ -1,5 +1,5 @@
 use crate::value::Type;
-use phf::{Map, phf_map};
+use phf::{phf_map, Map};
 use regex::Regex;
 use regex_split::RegexSplit;
 use std::io::Read;
@@ -58,11 +58,10 @@ pub enum Operator {
     And,
     Or,
     Not,
-    Nand,
     Cond,
-    Floor,
     Concat,
     Index,
+    Length,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,9 +97,8 @@ const TOKEN_MAP: Map<&str, PreToken> = phf_map! {
 "&&" => PreToken::OP(Operator::And),
 "||" => PreToken::OP(Operator::Or),
 "!" => PreToken::OP(Operator::Not),
-"!&&" => PreToken::OP(Operator::Nand),
+"len" => PreToken::OP(Operator::Length),
 "cond" => PreToken::OP(Operator::Cond),
-"floor" => PreToken::OP(Operator::Floor),
 "++" => PreToken::OP(Operator::Concat),
 "@" => PreToken::OP(Operator::Index),
 "|" => PreToken::KW(Keyword::Bar),

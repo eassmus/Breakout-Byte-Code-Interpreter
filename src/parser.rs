@@ -141,7 +141,10 @@ fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
                     }
                     j += 1;
                 }
-                if count == 0 {
+                if count == 0 && j == i + 2 {
+                    out.push(tokens[i].clone());
+                    i += 1;
+                } else if count == 0 {
                     if let PreTokenized::T(PreToken::TYPE(t)) = &tokens[i + max] {
                         let mut arr_type = t.clone();
                         for _ in 0..max {

@@ -131,6 +131,13 @@ impl VM {
                         a.value.f /= b.value.f;
                     }
                 }
+                OpCode::Mod => {
+                    let b = self.value_stack_pop();
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        a.value.i %= b.value.i;
+                    }
+                }
                 OpCode::True => self.value_stack_push(&[Value {
                     value: ValueUnion { b: true },
                 }]),
@@ -291,6 +298,20 @@ impl VM {
                         let a_str: &mut String = a.value.s.deref_mut();
                         let b_str = b.value.s.as_str();
                         a_str.push_str(b_str);
+                    }
+                }
+                OpCode::LenArr => {
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        let len = a.value.a.len();
+                        a.value.i = len as i64;
+                    }
+                }
+                OpCode::LenStr => {
+                    let a = self.value_stack_last_mut();
+                    unsafe {
+                        let len = a.value.s.len();
+                        a.value.i = len as i64;
                     }
                 }
                 OpCode::Index => {
