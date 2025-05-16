@@ -70,7 +70,7 @@ fn consume_eval(
                     t = Some(in_type);
                 } else if t.clone().unwrap() != in_type {
                     return Err(format!(
-                        "Type mismatch, expected {:?}, got {:?}",
+                        "aaa Type mismatch, expected {:?}, got {:?}",
                         t.clone().unwrap(),
                         in_type
                     ));
@@ -81,9 +81,13 @@ fn consume_eval(
             chunk.add_byte(num);
             token_stream.pop();
             if t.is_none() {
-                t = Some(Type::AnyType);
+                t = Some(Type::Array(Box::new(Type::AnyType)));
+                chunk.add_byte(0);
+            } else {
+                t = Some(Type::Array(Box::new(t.unwrap())));
+                chunk.add_byte(t.clone().unwrap().array_depth());
             }
-            Ok(Type::Array(Box::new(t.unwrap())))
+            Ok(t.unwrap())
         }
         Some(Token::Symb(s)) => {
             for (i, item) in local_variables.iter().enumerate() {
@@ -638,24 +642,6 @@ fn consume_def(
             )?;
             if t != eval_type {
                 return Err(format!("Type mismatch, expected {t} got {eval_type}",));
-            }
-
-            for (i, (_, t)) in local_variables.iter().enumerate() {
-                if let Type::Array(_) = t {
-                    let mut count = 0;
-                    let mut inner_type = t;
-                    while let Type::Array(t) = inner_type {
-                        count += 1;
-                        inner_type = t;
-                    }
-                    chunk.add_opcode(OpCode::DropArr);
-                    chunk.add_byte(i as u8);
-                    chunk.add_byte(count as u8);
-                }
-                if Type::String == *t {
-                    chunk.add_opcode(OpCode::DropStr);
-                    chunk.add_byte(i as u8);
-                }
             }
         }
         _ => {

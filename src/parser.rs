@@ -120,9 +120,15 @@ fn parse_word(s: String) -> Result<Token, ParsingError> {
 fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
     let mut out: Vec<PreTokenized> = Vec::new();
     let mut i: usize = 0;
+    let mut check = true;
     while i < tokens.len() {
         match tokens[i] {
             PreTokenized::T(PreToken::DEL(Delimeter::LBracket)) => {
+                if !check {
+                    out.push(tokens[i].clone());
+                    i += 1;
+                    continue;
+                }
                 let mut count: isize = 1;
                 let mut max: usize = 1;
                 let mut j = i + 1;
@@ -153,7 +159,8 @@ fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
                         out.push(PreTokenized::T(PreToken::TYPE(arr_type)));
                         i = j;
                     } else {
-                        panic!("invalid array type");
+                        out.push(tokens[i].clone());
+                        i += 1;
                     }
                 } else if count == -1 {
                     out.push(tokens[i].clone());
@@ -161,6 +168,16 @@ fn collapse_array_types(tokens: Vec<PreTokenized>) -> Vec<PreTokenized> {
                 } else {
                     panic!("unclosed array");
                 }
+            }
+            PreTokenized::T(PreToken::EOL) => {
+                check = true;
+                out.push(tokens[i].clone());
+                i += 1;
+            }
+            PreTokenized::T(PreToken::KW(Keyword::Kerchow)) => {
+                check = false;
+                out.push(tokens[i].clone());
+                i += 1;
             }
             _ => {
                 out.push(tokens[i].clone());

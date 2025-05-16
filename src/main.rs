@@ -32,6 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             compile(&mut tokens, &mut function_signatures, &mut constants)?;
 
         for chunk in chunks {
+            //println!("{:?}", chunk);
             vm.give_data(chunk);
         }
         vm.update_constants(&constants);

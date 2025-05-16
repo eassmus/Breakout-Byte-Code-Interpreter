@@ -4,6 +4,7 @@ use std::boxed::Box;
 use std::boxed::ThinBox;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
+use std::ops::DerefMut;
 
 #[derive(Debug, Clone)]
 pub enum Type {
@@ -23,9 +24,14 @@ impl PartialEq for Type {
             (Type::Bool, Type::Bool) => true,
             (Type::String, Type::String) => true,
             (Type::Array(x), Type::Array(y)) => *x == *y,
-            (Type::AnyType, Type::Array(_)) => true,
-            (Type::Array(_), Type::AnyType) => true,
-            (Type::AnyType, Type::AnyType) => true,
+            (Type::AnyType, Type::Int) => true,
+            (Type::AnyType, Type::Float) => true,
+            (Type::AnyType, Type::Bool) => true,
+            (Type::AnyType, Type::String) => true,
+            (Type::Int, Type::AnyType) => true,
+            (Type::Float, Type::AnyType) => true,
+            (Type::Bool, Type::AnyType) => true,
+            (Type::String, Type::AnyType) => true,
             _ => false,
         }
     }
@@ -33,17 +39,39 @@ impl PartialEq for Type {
 
 impl Eq for Type {}
 
+impl Type {
+    pub fn array_depth(&self) -> u8 {
+        match self {
+            Type::Array(t) => 1 + t.deref().array_depth(),
+            _ => 0,
+        }
+    }
+}
+
 pub union ValueUnion {
     pub f: OrderedFloat<f64>,
     pub i: i64,
     pub b: bool,
     pub a: ManuallyDrop<ThinBox<Vec<ValueUnion>>>,
-    pub s: ManuallyDrop<ThinBox<String>>, // TODO ThinBox<str>
+    pub s: ManuallyDrop<ThinBox<String>>, // TODO: ThinBox<str>
 }
 
 impl Clone for ValueUnion {
     fn clone(&self) -> Self {
         unsafe { std::mem::transmute_copy(self) }
+    }
+}
+
+impl ValueUnion {
+    pub fn recursive_drop(mut self, depth: u8) {
+        if depth != 0 {
+            unsafe {
+                for item in self.a.deref_mut().iter_mut() {
+                    item.clone().recursive_drop(depth - 1);
+                }
+                ManuallyDrop::drop(&mut self.a);
+            }
+        }
     }
 }
 
@@ -90,12 +118,12 @@ impl Value {
     ) -> std::fmt::Result {
         for item in unsafe { v.a.deref().iter() } {
             match sub_type {
-                Type::Float => self.fmt_float(&item, f)?,
-                Type::Int => self.fmt_int(&item, f)?,
-                Type::Bool => self.fmt_bool(&item, f)?,
-                Type::String => self.fmt_string(&item, f)?,
+                Type::Float => self.fmt_float(item, f)?,
+                Type::Int => self.fmt_int(item, f)?,
+                Type::Bool => self.fmt_bool(item, f)?,
+                Type::String => self.fmt_string(item, f)?,
                 Type::Array(sub_sub_type) => {
-                    self.fmt_array(&item, &sub_sub_type.deref().clone(), f)?
+                    self.fmt_array(item, &sub_sub_type.deref().clone(), f)?
                 }
                 Type::AnyType => panic!("AnyType"),
             }

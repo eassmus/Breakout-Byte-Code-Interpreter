@@ -1,4 +1,3 @@
-#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpCode {
     Return,
@@ -47,9 +46,6 @@ pub enum OpCode {
 
     LenArr,
     LenStr,
-
-    DropArr,
-    DropStr,
 
     Index,
 
@@ -110,15 +106,12 @@ impl From<u8> for OpCode {
             32 => OpCode::LenArr,
             33 => OpCode::LenStr,
 
-            34 => OpCode::DropArr,
-            35 => OpCode::DropStr,
+            34 => OpCode::Index,
 
-            36 => OpCode::Index,
+            35 => OpCode::And,
+            36 => OpCode::Or,
 
-            37 => OpCode::And,
-            38 => OpCode::Or,
-
-            39 => OpCode::Mod,
+            37 => OpCode::Mod,
 
             _ => OpCode::NullCode,
         }

@@ -1,0 +1,5 @@
+bool h := == len [] 0
+[[int]] f := [[1 2 3 4 5] [6 7 8 9 10]]
+bool g := x : [[[[int]]]] => == 0 len x
+bool main := && && && g [[[[2]]]] g [[[[]]]] == 2 len f h 
+

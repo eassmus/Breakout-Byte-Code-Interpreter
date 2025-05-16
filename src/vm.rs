@@ -10,6 +10,7 @@ pub struct VM {
     value_stack: Vec<Value>,
     constants: Vec<Value>,
     function_stack: Vec<(usize, Vec<Value>)>,
+    array_depth_drop_stack: Vec<u8>,
     main_pointer: Option<usize>,
     position_stack: Vec<usize>,
     main_type: Option<Type>,
@@ -22,6 +23,7 @@ impl VM {
             value_stack: Vec::new(),
             constants: Vec::new(),
             function_stack: Vec::new(),
+            array_depth_drop_stack: Vec::new(),
             main_pointer: None,
             position_stack: Vec::new(),
             main_type: None,
@@ -270,6 +272,8 @@ impl VM {
                 }
                 OpCode::ConstructArray => {
                     let size = data[0] as usize;
+                    let depth = data[1];
+                    self.array_depth_drop_stack.push(depth);
                     let mut arr = Vec::new();
                     arr.resize(size, ValueUnion { i: 0 });
                     for i in 0..size {
@@ -283,12 +287,16 @@ impl VM {
                     }]);
                 }
                 OpCode::ConcatArr => {
-                    let mut b = self.value_stack_pop();
+                    let b = self.value_stack_pop();
+                    let depth = self.array_depth_drop_stack.pop().unwrap();
+                    for _ in 0..depth {
+                        self.array_depth_drop_stack.pop();
+                    }
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
                         a_arr.extend_from_slice(&b.value.a);
-                        ManuallyDrop::drop(&mut b.value.a);
+                        b.value.recursive_drop(depth);
                     }
                 }
                 OpCode::ConcatStr => {
@@ -301,10 +309,14 @@ impl VM {
                     }
                 }
                 OpCode::LenArr => {
+                    let depth = self.array_depth_drop_stack.pop().unwrap();
+                    for _ in 0..depth {
+                        self.array_depth_drop_stack.pop();
+                    }
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let len = a.value.a.len();
-                        ManuallyDrop::drop(&mut a.value.a);
+                        a.clone().value.recursive_drop(depth);
                         a.value.i = len as i64;
                     }
                 }
@@ -338,22 +350,6 @@ impl VM {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         a.value.b = a.value.b || b.value.b;
-                    }
-                }
-                OpCode::DropArr => {
-                    let index = data[0] as usize;
-                    let _count = data[1] as usize;
-                    // TODO: RECURSIVE DROP
-                    unsafe {
-                        ManuallyDrop::drop(
-                            &mut self.function_stack.last_mut().unwrap().1[index].value.a,
-                        );
-                    }
-                }
-                OpCode::DropStr => {
-                    let mut a = self.value_stack_pop();
-                    unsafe {
-                        ManuallyDrop::drop(&mut a.value.s);
                     }
                 }
                 OpCode::NullCode => {
