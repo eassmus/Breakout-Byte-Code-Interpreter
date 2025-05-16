@@ -1,6 +1,6 @@
 use crate::chunk::Chunk;
 use crate::common::OpCode;
-use crate::value::{PrintValWrapper, Type, Value, ValueUnion};
+use crate::value::{PrintValWrapper, Type, Value};
 use std::boxed::ThinBox;
 use std::mem::ManuallyDrop;
 use std::ops::DerefMut;
@@ -81,71 +81,67 @@ impl VM {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.i += b.value.i;
+                        a.i += b.i;
                     }
                 }
                 OpCode::AddF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.f += b.value.f;
+                        a.f += b.f;
                     }
                 }
                 OpCode::SubtractI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.i -= b.value.i;
+                        a.i -= b.i;
                     }
                 }
                 OpCode::SubtractF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.f -= b.value.f;
+                        a.f -= b.f;
                     }
                 }
                 OpCode::MultiplyI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.i *= b.value.i;
+                        a.i *= b.i;
                     }
                 }
                 OpCode::MultiplyF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.f *= b.value.f;
+                        a.f *= b.f;
                     }
                 }
                 OpCode::DivideI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.i /= b.value.i;
+                        a.i /= b.i;
                     }
                 }
                 OpCode::DivideF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.f /= b.value.f;
+                        a.f /= b.f;
                     }
                 }
                 OpCode::Mod => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.i %= b.value.i;
+                        a.i %= b.i;
                     }
                 }
-                OpCode::True => self.value_stack_push(&[Value {
-                    value: ValueUnion { b: true },
-                }]),
-                OpCode::False => self.value_stack_push(&[Value {
-                    value: ValueUnion { b: false },
-                }]),
+                OpCode::True => self.value_stack_push(&[Value { b: true }]),
+                OpCode::False => self.value_stack_push(&[Value { b: false }]),
                 OpCode::FunctionCall => {
                     let next_func = data[0] as usize;
                     let mut args = Vec::new();
@@ -166,91 +162,91 @@ impl VM {
                 OpCode::Not => {
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = !a.value.b;
+                        a.b = !a.b;
                     }
                 }
                 OpCode::EqualI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i == b.value.i;
+                        a.b = a.i == b.i;
                     }
                 }
                 OpCode::EqualF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.f == b.value.f;
+                        a.b = a.f == b.f;
                     }
                 }
                 OpCode::EqualB => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.b == b.value.b;
+                        a.b = a.b == b.b;
                     }
                 }
                 OpCode::EqualS => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.s.as_str() == b.value.s.as_str();
+                        a.b = a.s.as_str() == b.s.as_str();
                     }
                 }
                 OpCode::LessThanI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i < b.value.i;
+                        a.b = a.i < b.i;
                     }
                 }
                 OpCode::LessThanF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.f < b.value.f;
+                        a.b = a.f < b.f;
                     }
                 }
                 OpCode::GreaterThanI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i > b.value.i;
+                        a.b = a.i > b.i;
                     }
                 }
                 OpCode::GreaterThanF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.f > b.value.f;
+                        a.b = a.f > b.f;
                     }
                 }
                 OpCode::LessThanOrEqualI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i <= b.value.i;
+                        a.b = a.i <= b.i;
                     }
                 }
                 OpCode::LessThanOrEqualF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.f <= b.value.f;
+                        a.b = a.f <= b.f;
                     }
                 }
                 OpCode::GreaterThanOrEqualI => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.i >= b.value.i;
+                        a.b = a.i >= b.i;
                     }
                 }
                 OpCode::GreaterThanOrEqualF => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.f >= b.value.f;
+                        a.b = a.f >= b.f;
                     }
                 }
                 OpCode::Advance => {
@@ -263,7 +259,7 @@ impl VM {
                 OpCode::AdvanceIfFalse => {
                     let amount = data[0] as usize;
                     let a = self.value_stack_pop();
-                    if !unsafe { a.value.b } {
+                    if !unsafe { a.b } {
                         let current =
                             self.program_data[self.function_stack.last().unwrap().0].get_pointer();
                         self.program_data[self.function_stack.last().unwrap().0]
@@ -275,15 +271,13 @@ impl VM {
                     let depth = data[1];
                     self.array_depth_drop_stack.push(depth);
                     let mut arr = Vec::new();
-                    arr.resize(size, ValueUnion { i: 0 });
+                    arr.resize(size, Value { i: 0 });
                     for i in 0..size {
-                        arr[size - i - 1] = self.value_stack_pop().value;
+                        arr[size - i - 1] = self.value_stack_pop();
                     }
                     arr.reverse();
                     self.value_stack_push(&[Value {
-                        value: ValueUnion {
-                            a: ManuallyDrop::new(ThinBox::new(arr)),
-                        },
+                        a: ManuallyDrop::new(ThinBox::new(arr)),
                     }]);
                 }
                 OpCode::ConcatArr => {
@@ -294,18 +288,18 @@ impl VM {
                     }
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
-                        a_arr.extend_from_slice(&b.value.a);
-                        b.value.recursive_drop(depth);
+                        let a_arr: &mut Vec<Value> = a.a.deref_mut();
+                        a_arr.extend_from_slice(&b.a);
+                        b.recursive_drop(depth);
                     }
                 }
                 OpCode::ConcatStr => {
                     let mut b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        let a_str: &mut String = a.value.s.deref_mut();
-                        a_str.push_str(b.value.s.as_str());
-                        ManuallyDrop::drop(&mut b.value.s);
+                        let a_str: &mut String = a.s.deref_mut();
+                        a_str.push_str(b.s.as_str());
+                        ManuallyDrop::drop(&mut b.s);
                     }
                 }
                 OpCode::LenArr => {
@@ -315,41 +309,41 @@ impl VM {
                     }
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        let len = a.value.a.len();
-                        a.clone().value.recursive_drop(depth);
-                        a.value.i = len as i64;
+                        let len = a.a.len();
+                        a.clone().recursive_drop(depth);
+                        a.i = len as i64;
                     }
                 }
                 OpCode::LenStr => {
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        let len = a.value.s.len();
-                        ManuallyDrop::drop(&mut a.value.s);
-                        a.value.i = len as i64;
+                        let len = a.s.len();
+                        ManuallyDrop::drop(&mut a.s);
+                        a.i = len as i64;
                     }
                 }
                 OpCode::Index => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        let a_arr: &mut Vec<ValueUnion> = a.value.a.deref_mut();
-                        let val = a_arr[b.value.i as usize].clone();
-                        ManuallyDrop::drop(&mut a.value.a);
-                        a.value = val;
+                        let a_arr: &mut Vec<Value> = a.a.deref_mut();
+                        let val = a_arr[b.i as usize].clone();
+                        ManuallyDrop::drop(&mut a.a);
+                        *a = val;
                     }
                 }
                 OpCode::And => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.b && b.value.b;
+                        a.b = a.b && b.b;
                     }
                 }
                 OpCode::Or => {
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
-                        a.value.b = a.value.b || b.value.b;
+                        a.b = a.b || b.b;
                     }
                 }
                 OpCode::NullCode => {

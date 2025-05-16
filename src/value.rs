@@ -48,21 +48,21 @@ impl Type {
     }
 }
 
-pub union ValueUnion {
+pub union Value {
     pub f: OrderedFloat<f64>,
     pub i: i64,
     pub b: bool,
-    pub a: ManuallyDrop<ThinBox<Vec<ValueUnion>>>,
+    pub a: ManuallyDrop<ThinBox<Vec<Value>>>,
     pub s: ManuallyDrop<ThinBox<String>>, // TODO: ThinBox<str>
 }
 
-impl Clone for ValueUnion {
+impl Clone for Value {
     fn clone(&self) -> Self {
         unsafe { std::mem::transmute_copy(self) }
     }
 }
 
-impl ValueUnion {
+impl Value {
     pub fn recursive_drop(mut self, depth: u8) {
         if depth != 0 {
             unsafe {
@@ -75,44 +75,32 @@ impl ValueUnion {
     }
 }
 
-pub struct Value {
-    pub value: ValueUnion,
-}
-
-impl Clone for Value {
-    fn clone(&self) -> Self {
-        Value {
-            value: self.value.clone(),
-        }
-    }
-}
-
 impl Value {
     pub fn fmt(&self, t: &Type, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match t {
-            Type::Float => self.fmt_float(&self.value, f),
-            Type::Int => self.fmt_int(&self.value, f),
-            Type::Bool => self.fmt_bool(&self.value, f),
-            Type::String => self.fmt_string(&self.value, f),
-            Type::Array(sub_type) => self.fmt_array(&self.value, &sub_type.deref().clone(), f),
+            Type::Float => self.fmt_float(&self, f),
+            Type::Int => self.fmt_int(&self, f),
+            Type::Bool => self.fmt_bool(&self, f),
+            Type::String => self.fmt_string(&self, f),
+            Type::Array(sub_type) => self.fmt_array(&self, &sub_type.deref().clone(), f),
             Type::AnyType => panic!("AnyType"),
         }
     }
-    fn fmt_float(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_float(&self, v: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", unsafe { v.f })
     }
-    fn fmt_int(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_int(&self, v: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", unsafe { v.i })
     }
-    fn fmt_bool(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_bool(&self, v: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", unsafe { v.b })
     }
-    fn fmt_string(&self, v: &ValueUnion, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_string(&self, v: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", unsafe { v.s.deref() })
     }
     fn fmt_array(
         &self,
-        v: &ValueUnion,
+        v: &Value,
         sub_type: &Type,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
@@ -145,19 +133,11 @@ impl std::fmt::Display for PrintValWrapper<'_> {
 
 pub fn val_from_literal(lit: Literal) -> Value {
     match lit {
-        Literal::Float(f) => Value {
-            value: ValueUnion { f },
-        },
-        Literal::Integer(i) => Value {
-            value: ValueUnion { i },
-        },
-        Literal::Bool(b) => Value {
-            value: ValueUnion { b },
-        },
+        Literal::Float(f) => Value { f },
+        Literal::Integer(i) => Value { i },
+        Literal::Bool(b) => Value { b },
         Literal::String(s) => Value {
-            value: ValueUnion {
-                s: ManuallyDrop::new(ThinBox::new(s)),
-            },
+            s: ManuallyDrop::new(ThinBox::new(s)),
         },
     }
 }
