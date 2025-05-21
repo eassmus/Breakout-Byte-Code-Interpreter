@@ -94,11 +94,20 @@ fn consume_eval(
                 if item.0 == s.name() {
                     let t = local_variables[i].1.clone();
                     match t {
-                        Type::String => chunk.add_opcode(OpCode::StackLoadLocalVarStr),
-                        Type::Array(_) => chunk.add_opcode(OpCode::StackLoadLocalVarArr),
-                        _ => chunk.add_opcode(OpCode::StackLoadLocalVar),
+                        Type::String => {
+                            chunk.add_opcode(OpCode::StackLoadLocalVarStr);
+                            chunk.add_byte(i as u8);
+                        }
+                        Type::Array(_) => {
+                            chunk.add_opcode(OpCode::StackLoadLocalVarArr);
+                            chunk.add_byte(i as u8);
+                            chunk.add_byte(t.array_depth());
+                        }
+                        _ => {
+                            chunk.add_opcode(OpCode::StackLoadLocalVar);
+                            chunk.add_byte(i as u8);
+                        }
                     }
-                    chunk.add_byte(i as u8);
                     token_stream.pop();
                     return Ok(t);
                 }
@@ -661,6 +670,21 @@ fn consume_def(
             if t != eval_type {
                 return Err(format!("Type mismatch, expected {t} got {eval_type}",));
             }
+        }
+    }
+
+    for (i, item) in local_variables.iter().enumerate() {
+        match item.1 {
+            Type::String => {
+                chunk.add_opcode(OpCode::DropLocalStr);
+                chunk.add_byte(i as u8);
+            }
+            Type::Array(_) => {
+                chunk.add_opcode(OpCode::DropLocalArr);
+                chunk.add_byte(i as u8);
+                chunk.add_byte(item.1.array_depth() as u8);
+            }
+            _ => {}
         }
     }
 

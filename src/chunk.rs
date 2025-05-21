@@ -60,11 +60,14 @@ impl Chunk {
         let oc: OpCode = unsafe { self.data[self.pointer].opcode };
         self.pointer += 1;
         match oc {
-            OpCode::FunctionCall | OpCode::ConstructArray => (oc, self.get_data(2)),
+            OpCode::FunctionCall
+            | OpCode::ConstructArray
+            | OpCode::DropLocalArr
+            | OpCode::StackLoadLocalVarArr => (oc, self.get_data(2)),
             OpCode::Constant
             | OpCode::StackLoadLocalVar
-            | OpCode::StackLoadLocalVarArr
             | OpCode::StackLoadLocalVarStr
+            | OpCode::DropLocalStr
             | OpCode::Advance
             | OpCode::AdvanceIfFalse => (oc, self.get_data(1)),
             _ => (oc, &[]),

@@ -64,7 +64,20 @@ impl VM {
                             val: self.value_stack.last().unwrap(),
                             t: self.main_type.as_ref().unwrap(),
                         };
-                        println!("{}", wrapper);
+                        println!("{wrapper}");
+                        let t = self.main_type.as_ref().unwrap();
+                        match t {
+                            Type::Array(_) => {
+                                self.value_stack
+                                    .last_mut()
+                                    .unwrap()
+                                    .recursive_drop(t.array_depth());
+                            }
+                            Type::String => unsafe {
+                                ManuallyDrop::drop(&mut self.value_stack.last_mut().unwrap().s);
+                            },
+                            _ => {}
+                        }
                         return Ok(());
                     }
                     self.function_stack.pop();
@@ -160,11 +173,21 @@ impl VM {
                 OpCode::StackLoadLocalVarArr => {
                     self.value_stack
                         .push(self.function_stack.last().unwrap().1[data[0] as usize].clone_arr());
+                    self.array_depth_drop_stack.push(data[1]);
                 }
                 OpCode::StackLoadLocalVarStr => {
                     self.value_stack
                         .push(self.function_stack.last().unwrap().1[data[0] as usize].clone_str());
                 }
+                OpCode::DropLocalArr => {
+                    self.function_stack.last_mut().unwrap().1[data[0] as usize]
+                        .recursive_drop(data[1]);
+                }
+                OpCode::DropLocalStr => unsafe {
+                    ManuallyDrop::drop(
+                        &mut self.function_stack.last_mut().unwrap().1[data[0] as usize].s,
+                    );
+                },
                 OpCode::Not => {
                     let a = self.value_stack_last_mut();
                     unsafe {
@@ -275,6 +298,9 @@ impl VM {
                 OpCode::ConstructArray => {
                     let size = data[0] as usize;
                     let depth = data[1];
+                    if depth > 1 {
+                        self.array_depth_drop_stack.pop();
+                    }
                     self.array_depth_drop_stack.push(depth);
                     let mut arr = Vec::new();
                     arr.resize(size, Value { i: 0 });
@@ -289,9 +315,6 @@ impl VM {
                 OpCode::ConcatArr => {
                     let mut b = self.value_stack_pop();
                     let depth = self.array_depth_drop_stack.pop().unwrap();
-                    for _ in 0..depth {
-                        self.array_depth_drop_stack.pop();
-                    }
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<Value> = a.a.deref_mut();
@@ -310,9 +333,6 @@ impl VM {
                 }
                 OpCode::LenArr => {
                     let depth = self.array_depth_drop_stack.pop().unwrap();
-                    for _ in 0..depth {
-                        self.array_depth_drop_stack.pop();
-                    }
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let len = a.a.len();
@@ -329,12 +349,13 @@ impl VM {
                     }
                 }
                 OpCode::Index => {
+                    let depth = self.array_depth_drop_stack.pop().unwrap();
                     let b = self.value_stack_pop();
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<Value> = a.a.deref_mut();
                         let val = a_arr[b.i as usize].clone();
-                        ManuallyDrop::drop(&mut a.a);
+                        a.recursive_drop(depth);
                         *a = val;
                     }
                 }

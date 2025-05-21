@@ -63,7 +63,7 @@ impl Clone for Value {
 }
 
 impl Value {
-    pub fn recursive_drop(mut self, depth: u8) {
+    pub fn recursive_drop(&mut self, depth: u8) {
         if depth != 0 {
             unsafe {
                 for item in self.a.deref_mut().iter_mut() {

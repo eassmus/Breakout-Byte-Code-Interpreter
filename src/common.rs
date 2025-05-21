@@ -40,6 +40,8 @@ pub enum OpCode {
     StackLoadLocalVar,
     StackLoadLocalVarArr,
     StackLoadLocalVarStr,
+    DropLocalArr,
+    DropLocalStr,
     FunctionCall,
 
     ConstructArray,
