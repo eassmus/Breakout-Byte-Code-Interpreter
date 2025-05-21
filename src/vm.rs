@@ -60,13 +60,11 @@ impl VM {
                 OpCode::Return => {
                     if self.function_stack.last().unwrap().0 == self.main_pointer.unwrap() {
                         self.function_stack.pop();
-                        println!(
-                            "{}",
-                            PrintValWrapper {
-                                val: self.value_stack.last().unwrap(),
-                                t: self.main_type.as_ref().unwrap()
-                            }
-                        );
+                        let wrapper = PrintValWrapper {
+                            val: self.value_stack.last().unwrap(),
+                            t: self.main_type.as_ref().unwrap(),
+                        };
+                        println!("{}", wrapper);
                         return Ok(());
                     }
                     self.function_stack.pop();
@@ -158,6 +156,14 @@ impl VM {
                 OpCode::StackLoadLocalVar => {
                     self.value_stack
                         .push(self.function_stack.last().unwrap().1[data[0] as usize].clone());
+                }
+                OpCode::StackLoadLocalVarArr => {
+                    self.value_stack
+                        .push(self.function_stack.last().unwrap().1[data[0] as usize].clone_arr());
+                }
+                OpCode::StackLoadLocalVarStr => {
+                    self.value_stack
+                        .push(self.function_stack.last().unwrap().1[data[0] as usize].clone_str());
                 }
                 OpCode::Not => {
                     let a = self.value_stack_last_mut();
@@ -281,7 +287,7 @@ impl VM {
                     }]);
                 }
                 OpCode::ConcatArr => {
-                    let b = self.value_stack_pop();
+                    let mut b = self.value_stack_pop();
                     let depth = self.array_depth_drop_stack.pop().unwrap();
                     for _ in 0..depth {
                         self.array_depth_drop_stack.pop();
@@ -289,7 +295,7 @@ impl VM {
                     let a = self.value_stack_last_mut();
                     unsafe {
                         let a_arr: &mut Vec<Value> = a.a.deref_mut();
-                        a_arr.extend_from_slice(&b.a);
+                        a_arr.append(&mut *b.a);
                         b.recursive_drop(depth);
                     }
                 }

@@ -73,16 +73,30 @@ impl Value {
             }
         }
     }
+    pub fn clone_str(&self) -> Self {
+        unsafe {
+            Value {
+                s: ManuallyDrop::new(ThinBox::new(self.s.deref().to_string().clone())),
+            }
+        }
+    }
+    pub fn clone_arr(&self) -> Self {
+        unsafe {
+            Value {
+                a: ManuallyDrop::new(ThinBox::new(self.a.deref().to_vec())),
+            }
+        }
+    }
 }
 
 impl Value {
     pub fn fmt(&self, t: &Type, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match t {
-            Type::Float => self.fmt_float(&self, f),
-            Type::Int => self.fmt_int(&self, f),
-            Type::Bool => self.fmt_bool(&self, f),
-            Type::String => self.fmt_string(&self, f),
-            Type::Array(sub_type) => self.fmt_array(&self, &sub_type.deref().clone(), f),
+            Type::Float => self.fmt_float(self, f),
+            Type::Int => self.fmt_int(self, f),
+            Type::Bool => self.fmt_bool(self, f),
+            Type::String => self.fmt_string(self, f),
+            Type::Array(sub_type) => self.fmt_array(self, &sub_type.deref().clone(), f),
             Type::AnyType => panic!("AnyType"),
         }
     }
@@ -96,7 +110,9 @@ impl Value {
         write!(f, "{}", unsafe { v.b })
     }
     fn fmt_string(&self, v: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", unsafe { v.s.deref() })
+        write!(f, "\"")?;
+        write!(f, "{}", unsafe { v.s.deref() })?;
+        write!(f, "\"")
     }
     fn fmt_array(
         &self,
@@ -104,17 +120,25 @@ impl Value {
         sub_type: &Type,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
-        for item in unsafe { v.a.deref().iter() } {
-            match sub_type {
-                Type::Float => self.fmt_float(item, f)?,
-                Type::Int => self.fmt_int(item, f)?,
-                Type::Bool => self.fmt_bool(item, f)?,
-                Type::String => self.fmt_string(item, f)?,
-                Type::Array(sub_sub_type) => {
-                    self.fmt_array(item, &sub_sub_type.deref().clone(), f)?
+        unsafe {
+            write!(f, "[")?;
+            let len = v.a.len();
+            for (i, item) in v.a.clone().into_iter().enumerate() {
+                match sub_type {
+                    Type::Float => self.fmt_float(&item, f)?,
+                    Type::Int => self.fmt_int(&item, f)?,
+                    Type::Bool => self.fmt_bool(&item, f)?,
+                    Type::String => self.fmt_string(&item, f)?,
+                    Type::Array(sub_sub_type) => {
+                        self.fmt_array(&item, &sub_sub_type.deref().clone(), f)?
+                    }
+                    Type::AnyType => panic!("AnyType"),
+                };
+                if i != len - 1 {
+                    write!(f, " ")?;
                 }
-                Type::AnyType => panic!("AnyType"),
             }
+            write!(f, "]")?;
         }
         Ok(())
     }
@@ -127,7 +151,8 @@ pub struct PrintValWrapper<'v> {
 
 impl std::fmt::Display for PrintValWrapper<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.val.fmt(self.t, f)
+        self.val.fmt(self.t, f)?;
+        writeln!(f)
     }
 }
 

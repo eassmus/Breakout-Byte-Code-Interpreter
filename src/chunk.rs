@@ -63,6 +63,8 @@ impl Chunk {
             OpCode::FunctionCall | OpCode::ConstructArray => (oc, self.get_data(2)),
             OpCode::Constant
             | OpCode::StackLoadLocalVar
+            | OpCode::StackLoadLocalVarArr
+            | OpCode::StackLoadLocalVarStr
             | OpCode::Advance
             | OpCode::AdvanceIfFalse => (oc, self.get_data(1)),
             _ => (oc, &[]),

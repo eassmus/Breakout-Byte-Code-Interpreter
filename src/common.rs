@@ -1,3 +1,4 @@
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpCode {
     Return,
@@ -37,6 +38,8 @@ pub enum OpCode {
     Not,
 
     StackLoadLocalVar,
+    StackLoadLocalVarArr,
+    StackLoadLocalVarStr,
     FunctionCall,
 
     ConstructArray,
